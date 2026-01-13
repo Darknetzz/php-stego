@@ -13,6 +13,64 @@ if (ob_get_level()) {
 require_once('config.php');
 require_once('functions.php');
 
+// Handle tool availability check - MUST be before any HTML output
+if (isset($_GET['action']) && $_GET['action'] === 'checkTools') {
+    header('Content-Type: application/json; charset=utf-8');
+    
+    // Function to check if a tool is available
+    $checkTool = function($toolName) {
+        $checkCommand = "which " . escapeshellarg($toolName) . " 2>/dev/null";
+        $cmdPathResult = shell_exec($checkCommand);
+        $cmdPath = $cmdPathResult !== null ? trim($cmdPathResult) : '';
+        
+        // If not found in PATH, check bin/ folder as fallback
+        if (empty($cmdPath)) {
+            $localBinPath = BIN_DIR . '/' . $toolName;
+            if (file_exists($localBinPath) && is_executable($localBinPath)) {
+                $cmdPath = $localBinPath;
+            } else {
+                return ['available' => false, 'error' => "Tool '$toolName' not found. Please install it to use this analysis module."];
+            }
+        }
+        
+        // Verify the tool is executable
+        if (!is_executable($cmdPath)) {
+            return ['available' => false, 'error' => "Tool '$toolName' found but is not executable"];
+        }
+        
+        // Try a simple test to check for library loading errors (non-blocking)
+        // Check if timeout command is available, otherwise skip timeout
+        $hasTimeout = shell_exec('which timeout 2>/dev/null') !== null;
+        $timeoutPrefix = $hasTimeout ? 'timeout 2 ' : '';
+        $testCommand = $timeoutPrefix . escapeshellarg($cmdPath) . " --version 2>&1 || " . 
+                      $timeoutPrefix . escapeshellarg($cmdPath) . " -v 2>&1 || " . 
+                      $timeoutPrefix . escapeshellarg($cmdPath) . " -h 2>&1 || echo 'ok'";
+        $testOutput = shell_exec($testCommand);
+        
+        // Check for library loading errors (only if we got output)
+        if ($testOutput && (
+            strpos($testOutput, 'error while loading shared libraries') !== false || 
+            strpos($testOutput, 'cannot open shared object file') !== false ||
+            strpos($testOutput, 'No such file or directory') !== false
+        )) {
+            return ['available' => false, 'error' => "Tool '$toolName' found but cannot run due to missing library dependencies"];
+        }
+        
+        return ['available' => true, 'path' => $cmdPath];
+    };
+    
+    // Check all tools that have checkboxes
+    $toolsToCheck = ['stegoveritas', 'foremost', 'steghide', 'strings'];
+    $results = [];
+    
+    foreach ($toolsToCheck as $tool) {
+        $results[$tool] = $checkTool($tool);
+    }
+    
+    echo json_encode($results, JSON_PRETTY_PRINT);
+    exit;
+}
+
 // Handle auto-install action - MUST be before any HTML output
 if (isset($_GET['action']) && $_GET['action'] === 'install') {
     // Ensure JSON response headers are sent first
@@ -136,6 +194,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
         img {
             max-width: 100%;
             border-radius: 0.375rem;
+        }
+        
+        .form-check-input:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .form-check-label.disabled-tool {
+            cursor: not-allowed;
+            text-decoration: line-through;
         }
     </style>
 </head>
@@ -291,6 +359,19 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         // Check if output contains "not found" error
         if (strpos($output, 'not found') !== false || strpos($output, 'command not found') !== false) {
             return ['error' => "Tool '$moduleName' not found. Please install it to use this analysis module."];
+        }
+        
+        // Check for library loading errors (missing shared libraries)
+        if (strpos($output, 'error while loading shared libraries') !== false || 
+            strpos($output, 'cannot open shared object file') !== false) {
+            $libError = "Tool '$moduleName' found but cannot run due to missing library dependencies. ";
+            if ($cmdPath === BIN_DIR . '/' . $baseCmd) {
+                $libError .= "The local binary requires libraries that are not installed. ";
+                $libError .= "Try installing the system package: sudo apt-get install $baseCmd";
+            } else {
+                $libError .= "Please install required library dependencies.";
+            }
+            return ['error' => $libError];
         }
         
         return ['output' => $output];
@@ -689,6 +770,106 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
 ?>
 
 <script>
+// Check tool availability on page load
+function checkToolAvailability() {
+    fetch('?action=checkTools')
+        .then(response => response.json())
+        .then(data => {
+            // Map tool names to checkbox IDs
+            const toolCheckboxMap = {
+                'stegoveritas': 'tool_stegoveritas',
+                'foremost': 'tool_foremost',
+                'steghide': 'tool_steghide',
+                'strings': 'tool_strings'
+            };
+            
+            // Process each tool
+            for (const [toolName, checkboxId] of Object.entries(toolCheckboxMap)) {
+                const checkbox = document.getElementById(checkboxId);
+                const label = checkbox ? checkbox.closest('.form-check') : null;
+                
+                if (!checkbox || !label) continue;
+                
+                const toolStatus = data[toolName];
+                
+                if (!toolStatus || !toolStatus.available) {
+                    // Disable the checkbox
+                    checkbox.disabled = true;
+                    checkbox.checked = false;
+                    
+                    // Add warning styling to label
+                    const labelElement = label.querySelector('label');
+                    if (labelElement) {
+                        labelElement.classList.add('disabled-tool', 'text-muted');
+                    }
+                    label.classList.add('text-muted');
+                    label.style.opacity = '0.7';
+                    
+                    // Add warning icon and message
+                    const warningIcon = document.createElement('i');
+                    warningIcon.className = 'bi bi-exclamation-triangle text-warning ms-2';
+                    warningIcon.title = toolStatus?.error || 'Tool not available';
+                    
+                    // Check if warning already exists
+                    if (!label.querySelector('.bi-exclamation-triangle')) {
+                        if (labelElement) {
+                            labelElement.appendChild(warningIcon);
+                        } else {
+                            label.appendChild(warningIcon);
+                        }
+                        
+                        // Add tooltip/popover for better UX
+                        const warningText = document.createElement('small');
+                        warningText.className = 'd-block text-warning mt-1 ms-4';
+                        warningText.style.fontSize = '0.85em';
+                        warningText.textContent = toolStatus?.error || 'Tool not available';
+                        label.appendChild(warningText);
+                    }
+                } else {
+                    // Tool is available - ensure checkbox is enabled
+                    checkbox.disabled = false;
+                    const labelElement = label.querySelector('label');
+                    if (labelElement) {
+                        labelElement.classList.remove('disabled-tool', 'text-muted');
+                    }
+                    label.classList.remove('text-muted');
+                    label.style.opacity = '1';
+                }
+            }
+            
+            // Show summary alert if any tools are unavailable
+            const unavailableTools = Object.keys(data).filter(tool => 
+                !data[tool] || !data[tool].available
+            );
+            
+            if (unavailableTools.length > 0) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <strong>Warning:</strong> ${unavailableTools.length} tool(s) are not available and have been disabled. 
+                    These tools will be skipped during analysis.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // Insert after the analysis options card
+                const optionsCard = document.querySelector('.col-md-6:last-child .card');
+                if (optionsCard && !document.querySelector('.tool-availability-warning')) {
+                    alertDiv.classList.add('tool-availability-warning');
+                    optionsCard.parentNode.insertBefore(alertDiv, optionsCard.nextSibling);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking tool availability:', error);
+        });
+}
+
+// Check tools when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    checkToolAvailability();
+});
+
 // Drag and drop functionality
 const uploadArea = document.getElementById('uploadArea');
 const fileInput = document.getElementById('fileToUpload');
@@ -841,6 +1022,24 @@ if (form) {
             e.preventDefault();
             alert('Please select a file to upload.');
             console.log('Form submission prevented: No file selected');
+            return false;
+        }
+        
+        // Check if any tools are selected
+        const toolCheckboxes = document.querySelectorAll('input[name="tools[]"]:not(:disabled)');
+        const selectedTools = document.querySelectorAll('input[name="tools[]"]:not(:disabled):checked');
+        
+        if (toolCheckboxes.length === 0) {
+            e.preventDefault();
+            alert('No analysis tools are available. Please install at least one tool before uploading.');
+            console.log('Form submission prevented: No tools available');
+            return false;
+        }
+        
+        if (selectedTools.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one analysis tool.');
+            console.log('Form submission prevented: No tools selected');
             return false;
         }
         

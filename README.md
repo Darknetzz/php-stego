@@ -59,6 +59,34 @@ The following command-line tools must be installed on your server:
 
 ## Installation
 
+### Quick Installation (Recommended)
+
+**For Ubuntu/Debian systems:**
+```bash
+sudo apt-get update && sudo apt-get install -y python3-pip foremost steghide outguess exiv2 libimage-exiftool-perl binwalk && sudo pip3 install stegoveritas
+```
+
+**For RHEL/CentOS systems:**
+```bash
+sudo yum install -y python3-pip foremost steghide outguess exiv2 perl-Image-ExifTool binwalk && sudo pip3 install stegoveritas
+```
+
+**For Fedora systems:**
+```bash
+sudo dnf install -y python3-pip foremost steghide outguess exiv2 perl-Image-ExifTool binwalk && sudo pip3 install stegoveritas
+```
+
+**Or use the automated installation script:**
+```bash
+# Full-featured script with error handling and verification
+sudo bash install-tools.sh
+
+# Or quick one-liner script
+sudo bash install-all.sh
+```
+
+### Manual Installation
+
 1. Clone or download this repository to your web server directory
 
 ```bash
