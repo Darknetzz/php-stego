@@ -62,12 +62,36 @@ if (isset($_GET['action']) && $_GET['action'] === 'checkTools') {
     // Check all tools that have checkboxes
     $toolsToCheck = ['stegoveritas', 'foremost', 'steghide', 'strings'];
     $results = [];
+    $unavailableTools = [];
     
     foreach ($toolsToCheck as $tool) {
-        $results[$tool] = $checkTool($tool);
+        $toolResult = $checkTool($tool);
+        $results[$tool] = $toolResult;
+        if (!($toolResult['available'] ?? false)) {
+            $unavailableTools[] = $tool;
+        }
     }
     
-    echo json_encode($results, JSON_PRETTY_PRINT);
+    // Generate installation commands for unavailable tools
+    $installInfo = [];
+    if (!empty($unavailableTools)) {
+        $installInfo = installTools($unavailableTools);
+    }
+    
+    // Handle error case
+    $installCommands = [];
+    $packageManager = 'unknown';
+    if (!empty($installInfo) && !isset($installInfo['error'])) {
+        $installCommands = $installInfo['commands'] ?? [];
+        $packageManager = $installInfo['packageManager'] ?? 'unknown';
+    }
+    
+    echo json_encode([
+        'tools' => $results,
+        'installCommands' => $installCommands,
+        'packageManager' => $packageManager,
+        'toolKeys' => $unavailableTools
+    ], JSON_PRETTY_PRINT);
     exit;
 }
 
@@ -225,6 +249,34 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
         .upload-area.dragover {
             background-color: #2d4d2d !important;
             border-color: #198754 !important;
+        }
+        
+        .upload-area img {
+            max-height: 300px;
+            max-width: 100%;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-area .image-preview-container {
+            position: relative;
+        }
+        
+        .upload-area .upload-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+        }
+        
+        .upload-area:hover .upload-overlay {
+            display: flex;
         }
         
         .file-input {
@@ -544,17 +596,14 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
     $fileName = htmlspecialchars(basename($_FILES["fileToUpload"]["name"]));
     $selectedTools = isset($_POST['tools']) ? $_POST['tools'] : [];
 
-    // Display upload success and file preview
+    // Store image path for JavaScript to update upload area
+    $uploadedImagePath = $fullPathToFile;
+    
+    // Display upload success message
     echo "<div class='card shadow-lg mb-4'>";
     echo "<div class='card-body p-4'>";
     echo "<div class='alert alert-success'><i class='bi bi-check-circle'></i> File <strong>$fileName</strong> uploaded successfully!</div>";
     echo "<div class='alert alert-warning'><i class='bi bi-clock'></i> All data will be automatically deleted after ".DELETE_AFTER." seconds (".round(DELETE_AFTER/60)." minutes).</div>";
-    
-    // File preview
-    echo "<div class='text-center my-4'>";
-    echo "<h5 class='mb-3'><i class='bi bi-image'></i> Image Preview</h5>";
-    echo "<img src='".htmlspecialchars($fullPathToFile)."' alt='Uploaded image' class='img-thumbnail' style='max-height: 300px;'>";
-    echo "</div>";
     echo "</div></div>";
 
     // Display analysis summary card
@@ -815,103 +864,44 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         }
     }
     
-    // Display all errors at the top
-    if (!empty($errorsData)) {
-        echo "<div class='card shadow-lg mb-4 border-warning'>";
-        echo "<div class='card-header bg-warning text-dark'>";
-        echo "<h4 class='mb-0'><i class='bi bi-exclamation-triangle me-2'></i> Missing Tools / Errors</h4>";
-        echo "</div>";
-        echo "<div class='card-body'>";
-        
-        // Map display names to tool keys for installation
-        $toolMapping = [
-            'stegoveritas' => 'stegoveritas',
-            'foremost' => 'foremost',
-            'steghideInfo' => 'steghide',
-            'steghideE' => 'steghide',
-            'outguess' => 'outguess',
-            'strings' => 'strings',
-            'exiv2' => 'exiv2',
-            'exif' => 'exiftool',
-            'binwalk' => 'binwalk',
-            'xxd' => 'xxd'
+    // Store missing tools data for JavaScript modal
+    // Map display names to tool keys for installation
+    $toolMapping = [
+        'stegoveritas' => 'stegoveritas',
+        'foremost' => 'foremost',
+        'steghideInfo' => 'steghide',
+        'steghideE' => 'steghide',
+        'outguess' => 'outguess',
+        'strings' => 'strings',
+        'exiv2' => 'exiv2',
+        'exif' => 'exiftool',
+        'binwalk' => 'binwalk',
+        'xxd' => 'xxd'
+    ];
+    
+    $toolKeys = [];
+    foreach ($missingTools as $tool) {
+        $toolKey = $toolMapping[$tool] ?? strtolower($tool);
+        if (!in_array($toolKey, $toolKeys)) {
+            $toolKeys[] = $toolKey;
+        }
+    }
+    
+    $installInfo = installTools($toolKeys);
+    $packageManager = $installInfo['packageManager'] ?? 'unknown';
+    $installCommands = $installInfo['commands'] ?? [];
+    
+    // Create formatted missing tools data for JavaScript
+    $missingToolsData = [];
+    foreach ($errorsData as $toolName => $errorInfo) {
+        $displayName = ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $toolName));
+        $toolKey = $toolMapping[$toolName] ?? strtolower($toolName);
+        $missingToolsData[$toolName] = [
+            'name' => $displayName,
+            'error' => $errorInfo['error'],
+            'icon' => $errorInfo['icon'],
+            'toolKey' => $toolKey
         ];
-        
-        $toolKeys = [];
-        foreach ($missingTools as $tool) {
-            $toolKey = $toolMapping[$tool] ?? strtolower($tool);
-            if (!in_array($toolKey, $toolKeys)) {
-                $toolKeys[] = $toolKey;
-            }
-        }
-        
-        $installInfo = installTools($toolKeys);
-        $packageManager = $installInfo['packageManager'] ?? 'unknown';
-        $installCommands = $installInfo['commands'] ?? [];
-        
-        // Create reverse mapping for display
-        $reverseMapping = [];
-        foreach ($missingTools as $tool) {
-            $toolKey = $toolMapping[$tool] ?? strtolower($tool);
-            if (!isset($reverseMapping[$toolKey])) {
-                $reverseMapping[$toolKey] = [];
-            }
-            $reverseMapping[$toolKey][] = $tool;
-        }
-        
-        echo "<div class='alert alert-warning mb-3'>";
-        echo "<h5 class='mb-3'><i class='bi bi-exclamation-triangle'></i> Missing Tools</h5>";
-        echo "<p class='mb-2'>The following analysis tools are not installed on the server:</p>";
-        echo "<ul class='mb-3'>";
-        foreach ($errorsData as $toolName => $errorInfo) {
-            $displayName = ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $toolName));
-            echo "<li><strong><i class='bi {$errorInfo['icon']} me-2'></i>$displayName:</strong> ".htmlspecialchars($errorInfo['error'])."</li>";
-        }
-        echo "</ul>";
-        
-        // Show installation instructions
-        if ($packageManager !== 'unknown' && !empty($installCommands)) {
-            echo "<div class='card bg-light mb-3'>";
-            echo "<div class='card-header'><strong><i class='bi bi-terminal'></i> Installation Commands (Detected: $packageManager)</strong></div>";
-            echo "<div class='card-body'>";
-            echo "<p class='mb-3'>Copy and paste these commands into your terminal (requires root/sudo access):</p>";
-            
-            foreach ($toolKeys as $toolKey) {
-                if (isset($installCommands[$toolKey])) {
-                    // Get display names for this tool key
-                    $displayNames = $reverseMapping[$toolKey] ?? [$toolKey];
-                    $toolName = ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $displayNames[0]));
-                    $cmd = $installCommands[$toolKey];
-                    echo "<div class='mb-3'>";
-                    echo "<label class='form-label fw-bold'>$toolName:</label>";
-                    echo "<div class='input-group'>";
-                    echo "<input type='text' class='form-control font-monospace' value='sudo $cmd' readonly id='cmd_$toolKey'>";
-                    echo "<button class='btn btn-outline-secondary' type='button' onclick='copyToClipboard(\"cmd_$toolKey\")'><i class='bi bi-clipboard'></i> Copy</button>";
-                    echo "</div>";
-                    echo "</div>";
-                }
-            }
-            
-            // Auto-install button (if server allows)
-            echo "<hr>";
-            echo "<div class='alert alert-info mb-0'>";
-            echo "<strong><i class='bi bi-info-circle'></i> Auto-Install Option:</strong> ";
-            echo "<button type='button' class='btn btn-sm btn-primary ms-2' onclick='attemptInstall()' id='autoInstallBtn'>";
-            echo "<i class='bi bi-download'></i> Attempt Auto-Install (requires sudo access)";
-            echo "</button>";
-            echo "<div id='installStatus' class='mt-2'></div>";
-            echo "</div>";
-            
-            echo "</div></div>";
-        } else {
-            echo "<div class='alert alert-info mb-0'>";
-            echo "<p class='mb-2'><strong>Manual Installation Required</strong></p>";
-            echo "<p class='mb-0'><small>Package manager not detected or installation commands not available. Please refer to README.md for manual installation instructions.</small></p>";
-            echo "</div>";
-        }
-        
-        echo "</div>";
-        echo "</div></div>";
     }
 
     // Second pass: Display successful module results only
@@ -921,15 +911,15 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         $extraOut = "";
         $icon = $moduleIcons[$moduleName] ?? 'bi-gear';
 
-        // Skip error entries and password fields, and modules with errors (already displayed at top)
+        // Skip error entries and password fields
         if (strpos($moduleName, '_error') !== false || $moduleName == 'steghideP' || $moduleName == 'outguessP') {
             continue;
         }
         
-        // Skip modules with errors (already displayed at top)
+        // Skip modules with errors (will be shown in modal)
         $errorKey = $moduleName . '_error';
         if (isset($module[$errorKey])) {
-            continue; // Skip modules with errors, they're already shown at the top
+            continue; // Skip modules with errors
         }
         
         if ($moduleName == 'steghideE') {
@@ -966,20 +956,45 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
 
         // Format output (no errors here, they're displayed at the top)
         $formattedOutput = "";
+        $rawOutput = !empty($output) ? $output : '';
+        $outputId = 'output_' . $moduleName;
         
         if ($collapse) {
             $outputContent = !empty($output) ? htmlspecialchars($output) : 'No output';
             $formattedOutput = '
-            <button class="btn btn-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#'.$moduleName.'" aria-expanded="false">
-            <i class="bi bi-chevron-down"></i> Show Output
-            </button>
+            <div class="mb-3">
+                <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#'.$moduleName.'" aria-expanded="false">
+                <i class="bi bi-chevron-down"></i> Show Output
+                </button>
+            </div>
             <div class="collapse" id="'.$moduleName.'">
-            <pre class="code-block p-3 rounded">'.$outputContent.'</pre>
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-secondary me-2" type="button" onclick="copyOutputToClipboard(\''.$outputId.'\')">
+                        <i class="bi bi-clipboard"></i> Copy to Clipboard
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="saveOutputToFile(\''.$outputId.'\', \''.$moduleName.'\')">
+                        <i class="bi bi-download"></i> Save to File
+                    </button>
+                </div>
+                <pre class="code-block p-3 rounded" id="'.$outputId.'" data-raw-output="'.htmlspecialchars($rawOutput, ENT_QUOTES).'">'.$outputContent.'</pre>
             </div>
             ';
         } else {
             if (!empty($output)) {
-                $formattedOutput = '<div class="bg-light p-3 rounded mb-3"><pre class="code-block p-3 rounded">'.htmlspecialchars($output).'</pre></div>';
+                $outputContent = htmlspecialchars($output);
+                $formattedOutput = '
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-secondary me-2" type="button" onclick="copyOutputToClipboard(\''.$outputId.'\')">
+                        <i class="bi bi-clipboard"></i> Copy to Clipboard
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" onclick="saveOutputToFile(\''.$outputId.'\', \''.$moduleName.'\')">
+                        <i class="bi bi-download"></i> Save to File
+                    </button>
+                </div>
+                <div class="bg-light p-3 rounded mb-3">
+                    <pre class="code-block p-3 rounded" id="'.$outputId.'" data-raw-output="'.htmlspecialchars($rawOutput, ENT_QUOTES).'">'.$outputContent.'</pre>
+                </div>
+                ';
             }
         }
 
@@ -1003,13 +1018,31 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
     echo "<div class='card-body p-4'>";
     echo "<div class='alert alert-info mb-0'>";
     echo "<h5 class='mb-2'><i class='bi bi-check-circle'></i> Analysis Complete</h5>";
-    echo "<p class='mb-0'>Ran <strong>$successfulModules</strong> of <strong>$totalModules</strong> analysis modules successfully.";
+    echo "<p class='mb-0' id='summaryText'>Ran <strong>$successfulModules</strong> of <strong>$totalModules</strong> analysis modules successfully.";
     if (!empty($missingTools)) {
         echo " <strong>".count($missingTools)."</strong> tool(s) not available.";
+        echo " <i class='bi bi-question-circle ms-1' id='summaryQuestionMark' style='cursor: pointer; font-size: 1.1em; opacity: 0.8;' title='Click to see missing tools and installation commands'></i>";
     }
     echo "</p>";
     echo "</div>";
     echo "</div></div>";
+    
+    // Store missing tools data in JavaScript
+    if (!empty($missingTools)) {
+        echo "<script>";
+        echo "const analysisMissingTools = " . json_encode($missingToolsData) . ";\n";
+        echo "const analysisInstallCommands = " . json_encode($installCommands) . ";\n";
+        echo "const analysisPackageManager = " . json_encode($packageManager) . ";\n";
+        echo "const analysisToolKeys = " . json_encode($toolKeys) . ";\n";
+        echo "</script>";
+    }
+    
+    // Store uploaded image path for JavaScript
+    if (isset($uploadedImagePath)) {
+        echo "<script>";
+        echo "const uploadedImagePath = " . json_encode($uploadedImagePath) . ";\n";
+        echo "</script>";
+    }
 
     // Schedule cleanup
     shell_exec('python3 deleteafter.py '.escapeshellarg($outputFolder).' '.DELETE_AFTER.' > /dev/null 2>&1 &');
@@ -1057,6 +1090,9 @@ function checkToolAvailability() {
     fetch('?action=checkTools')
         .then(response => response.json())
         .then(data => {
+            // Support both old format (flat object) and new format (nested with tools)
+            const toolsData = data.tools || data;
+            
             // Map tool names to checkbox IDs
             const toolCheckboxMap = {
                 'stegoveritas': 'tool_stegoveritas',
@@ -1072,7 +1108,7 @@ function checkToolAvailability() {
                 
                 if (!checkbox || !label) continue;
                 
-                const toolStatus = data[toolName];
+                const toolStatus = toolsData[toolName];
                 
                 if (!toolStatus || !toolStatus.available) {
                     // Disable the checkbox
@@ -1100,12 +1136,7 @@ function checkToolAvailability() {
                             label.appendChild(warningIcon);
                         }
                         
-                        // Add tooltip/popover for better UX
-                        const warningText = document.createElement('small');
-                        warningText.className = 'd-block text-warning mt-1 ms-4';
-                        warningText.style.fontSize = '0.85em';
-                        warningText.textContent = toolStatus?.error || 'Tool not available';
-                        label.appendChild(warningText);
+                        // Don't add warning text to individual tools - will be shown in modal
                     }
                 } else {
                     // Tool is available - ensure checkbox is enabled
@@ -1120,19 +1151,65 @@ function checkToolAvailability() {
             }
             
             // Show summary alert if any tools are unavailable
-            const unavailableTools = Object.keys(data).filter(tool => 
-                !data[tool] || !data[tool].available
+            // toolsData is already defined above, reuse it
+            const unavailableTools = Object.keys(toolsData).filter(tool => 
+                !toolsData[tool] || !toolsData[tool].available
             );
+            
+            // Get installation commands from response (if available)
+            const installCommands = data.installCommands || {};
+            const packageManager = data.packageManager || 'unknown';
+            const toolKeys = data.toolKeys || unavailableTools;
+            
+            // Build unavailable tools data with tool names and errors
+            const unavailableToolsData = {};
+            for (const tool of unavailableTools) {
+                const toolStatus = toolsData[tool];
+                unavailableToolsData[tool] = {
+                    name: tool.charAt(0).toUpperCase() + tool.slice(1),
+                    error: toolStatus?.error || 'Tool not available',
+                    toolKey: tool
+                };
+            }
             
             if (unavailableTools.length > 0) {
                 const alertDiv = document.createElement('div');
                 alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
+                
+                // Create question mark icon with click handler
+                const questionMarkIcon = document.createElement('i');
+                questionMarkIcon.className = 'bi bi-question-circle ms-2';
+                questionMarkIcon.style.cursor = 'pointer';
+                questionMarkIcon.style.fontSize = '1.1em';
+                questionMarkIcon.style.textDecoration = 'none';
+                questionMarkIcon.style.opacity = '0.8';
+                questionMarkIcon.title = 'Click to see details';
+                questionMarkIcon.addEventListener('click', function() {
+                    showMissingToolsModal(unavailableToolsData, installCommands, packageManager, toolKeys);
+                });
+                questionMarkIcon.addEventListener('mouseenter', function() {
+                    this.style.opacity = '1';
+                    this.style.textDecoration = 'underline';
+                });
+                questionMarkIcon.addEventListener('mouseleave', function() {
+                    this.style.opacity = '0.8';
+                    this.style.textDecoration = 'none';
+                });
+                
+                const alertContent = document.createElement('span');
+                alertContent.innerHTML = `
                     <i class="bi bi-exclamation-triangle"></i> 
                     <strong>Warning:</strong> ${unavailableTools.length} tool(s) are not available and have been disabled. 
                     These tools will be skipped during analysis.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 `;
+                alertDiv.appendChild(alertContent);
+                alertDiv.appendChild(questionMarkIcon);
+                const closeButton = document.createElement('button');
+                closeButton.type = 'button';
+                closeButton.className = 'btn-close';
+                closeButton.setAttribute('data-bs-dismiss', 'alert');
+                closeButton.setAttribute('aria-label', 'Close');
+                alertDiv.appendChild(closeButton);
                 
                 // Insert after the analysis options card
                 const optionsCard = document.querySelector('.col-md-6:last-child .card');
@@ -1140,6 +1217,9 @@ function checkToolAvailability() {
                     alertDiv.classList.add('tool-availability-warning');
                     optionsCard.parentNode.insertBefore(alertDiv, optionsCard.nextSibling);
                 }
+                
+                // Store unavailable tools data for modal
+                alertDiv.setAttribute('data-unavailable-tools', JSON.stringify(unavailableToolsData));
             }
         })
         .catch(error => {
@@ -1147,9 +1227,177 @@ function checkToolAvailability() {
         });
 }
 
+// Function to show missing tools modal
+function showMissingToolsModal(unavailableToolsData, installCommands = null, packageManager = null, toolKeys = null) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('missingToolsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'missingToolsModal';
+        modal.className = 'modal fade';
+        modal.setAttribute('tabindex', '-1');
+        modal.setAttribute('aria-labelledby', 'missingToolsModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(modal);
+    }
+    
+    // Build tools list
+    let toolsList = '';
+    for (const [toolKey, toolData] of Object.entries(unavailableToolsData)) {
+        toolsList += `
+            <div class="mb-3">
+                <h6 class="text-warning mb-1">
+                    <i class="bi ${toolData.icon || 'bi-exclamation-triangle'} me-2"></i>${toolData.name}
+                </h6>
+                <p class="text-muted mb-0 ms-4">${toolData.error || 'Tool not available'}</p>
+            </div>
+        `;
+    }
+    
+    // Build installation commands section
+    let installCommandsHtml = '';
+    if (installCommands && packageManager && packageManager !== 'unknown' && Object.keys(installCommands).length > 0) {
+        let commandsList = '';
+        // Map tool keys to module names for display
+        const toolKeyToModuleName = {};
+        for (const [moduleName, toolData] of Object.entries(unavailableToolsData)) {
+            if (toolData.toolKey) {
+                toolKeyToModuleName[toolData.toolKey] = moduleName;
+            }
+        }
+        
+        for (const toolKey of (toolKeys || Object.keys(installCommands))) {
+            if (installCommands[toolKey]) {
+                const cmd = installCommands[toolKey];
+                // Find the module name that corresponds to this tool key
+                const moduleName = toolKeyToModuleName[toolKey] || toolKey;
+                const toolName = unavailableToolsData[moduleName]?.name || toolKey.charAt(0).toUpperCase() + toolKey.slice(1);
+                const uniqueId = 'modal_cmd_' + toolKey.replace(/[^a-zA-Z0-9]/g, '_');
+                commandsList += `
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">${toolName}:</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control font-monospace" value="sudo ${cmd}" readonly id="${uniqueId}">
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard('${uniqueId}')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        if (commandsList) {
+            installCommandsHtml = `
+                <div class="card bg-light mb-3 mt-4">
+                    <div class="card-header">
+                        <strong><i class="bi bi-terminal me-2"></i>Installation Commands (Detected: ${packageManager})</strong>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Copy and paste these commands into your terminal (requires root/sudo access):</p>
+                        ${commandsList}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="missingToolsModalLabel">
+                        <i class="bi bi-exclamation-triangle text-warning me-2"></i>Missing Tools
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">The following analysis tools are not available and have been disabled:</p>
+                    ${toolsList}
+                    ${installCommandsHtml}
+                    <div class="alert alert-info mt-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Note:</strong> These tools will be skipped during analysis. 
+                        To enable them, please install the required tools using the installation commands above.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Show the modal
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
 // Check tools when page loads
 document.addEventListener('DOMContentLoaded', function() {
     checkToolAvailability();
+    
+    // Update upload area with image preview if image is uploaded
+    if (typeof uploadedImagePath !== 'undefined' && uploadedImagePath) {
+        const uploadArea = document.getElementById('uploadArea');
+        if (uploadArea) {
+            uploadArea.innerHTML = `
+                <div class="image-preview-container">
+                    <img src="${uploadedImagePath}" alt="Uploaded image" class="img-thumbnail">
+                    <div class="upload-overlay">
+                        <div class="text-center text-white">
+                            <i class="bi bi-cloud-upload" style="font-size: 3rem;"></i>
+                            <p class="mt-2 mb-0">Click to upload a new image</p>
+                        </div>
+                    </div>
+                </div>
+                <input type="file" name="fileToUpload" id="fileToUpload" class="file-input" accept="image/*" required>
+            `;
+            
+            // Reattach event listeners
+            const fileInput = document.getElementById('fileToUpload');
+            if (fileInput) {
+                uploadArea.addEventListener('click', () => fileInput.click());
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('dragover');
+                });
+                uploadArea.addEventListener('dragleave', () => {
+                    uploadArea.classList.remove('dragover');
+                });
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('dragover');
+                    if (e.dataTransfer.files.length > 0) {
+                        fileInput.files = e.dataTransfer.files;
+                    }
+                });
+            }
+        }
+    }
+    
+    // Add click handler for summary question mark (if analysis missing tools exist)
+    if (typeof analysisMissingTools !== 'undefined' && Object.keys(analysisMissingTools).length > 0) {
+        const summaryQuestionMark = document.getElementById('summaryQuestionMark');
+        if (summaryQuestionMark) {
+            summaryQuestionMark.addEventListener('click', function() {
+                showMissingToolsModal(
+                    analysisMissingTools,
+                    analysisInstallCommands,
+                    analysisPackageManager,
+                    analysisToolKeys
+                );
+            });
+            summaryQuestionMark.addEventListener('mouseenter', function() {
+                this.style.opacity = '1';
+                this.style.textDecoration = 'underline';
+            });
+            summaryQuestionMark.addEventListener('mouseleave', function() {
+                this.style.opacity = '0.8';
+                this.style.textDecoration = 'none';
+            });
+        }
+    }
 });
 
 // Drag and drop functionality
@@ -1191,7 +1439,7 @@ function updateFileName() {
     }
 }
 
-// Copy to clipboard function
+// Copy to clipboard function (for input elements)
 function copyToClipboard(elementId) {
     const element = document.getElementById(elementId);
     element.select();
@@ -1212,6 +1460,67 @@ function copyToClipboard(elementId) {
         document.execCommand('copy');
         alert('Command copied to clipboard!');
     });
+}
+
+// Copy output to clipboard function (for pre elements)
+function copyOutputToClipboard(outputId) {
+    const element = document.getElementById(outputId);
+    if (!element) return;
+    
+    // Get raw output from data attribute, or fall back to text content
+    const textToCopy = element.getAttribute('data-raw-output') || element.textContent || element.innerText;
+    
+    navigator.clipboard.writeText(textToCopy).then(function() {
+        // Find the copy button and update it
+        const container = element.closest('.collapse') || element.parentElement;
+        const copyBtn = container.querySelector('button[onclick*="copyOutputToClipboard"]');
+        if (copyBtn) {
+            const originalHTML = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            copyBtn.classList.remove('btn-outline-secondary');
+            copyBtn.classList.add('btn-success');
+            setTimeout(function() {
+                copyBtn.innerHTML = originalHTML;
+                copyBtn.classList.remove('btn-success');
+                copyBtn.classList.add('btn-outline-secondary');
+            }, 2000);
+        }
+    }).catch(function(err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = textToCopy;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Output copied to clipboard!');
+    });
+}
+
+// Save output to file function
+function saveOutputToFile(outputId, moduleName) {
+    const element = document.getElementById(outputId);
+    if (!element) return;
+    
+    // Get raw output from data attribute, or fall back to text content
+    const textToSave = element.getAttribute('data-raw-output') || element.textContent || element.innerText;
+    
+    // Create a blob with the text
+    const blob = new Blob([textToSave], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary anchor element and trigger download
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = moduleName + '_output.txt';
+    document.body.appendChild(a);
+    a.click();
+    
+    // Clean up
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // Attempt auto-install
