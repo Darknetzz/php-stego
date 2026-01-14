@@ -61,7 +61,24 @@ The following command-line tools must be installed on your server:
 
 ## Installation
 
-### Quick Installation (Recommended)
+### Manual Installation
+
+1. Clone or download this repository to your web server directory
+
+```bash
+git clone https://github.com/Darknetzz/php-stego.git
+```
+
+2. Set proper permissions on the uploads directory
+
+```bash
+cd php-stego && \
+sudo mkdir -p uploads && \
+sudo chmod 755 uploads && \
+sudo chown www-data:www-data uploads  # Adjust user/group as needed
+```
+
+### Modules prerequisites
 
 **For Ubuntu/Debian systems:**
 ```bash
@@ -85,23 +102,6 @@ sudo bash install-tools.sh
 
 # Or quick one-liner script
 sudo bash install-all.sh
-```
-
-### Manual Installation
-
-1. Clone or download this repository to your web server directory
-
-```bash
-git clone <repository-url> php-stego
-```
-
-2. Set proper permissions on the uploads directory
-
-```bash
-cd php-stego && \
-sudo mkdir -p uploads && \
-sudo chmod 755 uploads && \
-sudo chown www-data:www-data uploads  # Adjust user/group as needed
 ```
 
 3. Ensure bash is installed (usually pre-installed on Linux systems)
