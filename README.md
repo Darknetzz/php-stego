@@ -90,15 +90,16 @@ sudo bash install-all.sh
 1. Clone or download this repository to your web server directory
 
 ```bash
-git clone <repository-url> /var/www/html/stego
+git clone <repository-url> php-stego
 ```
 
 2. Set proper permissions on the uploads directory
 
 ```bash
-mkdir -p uploads
-chmod 755 uploads
-chown www-data:www-data uploads  # Adjust user/group as needed
+cd php-stego && \
+sudo mkdir -p uploads && \
+sudo chmod 755 uploads && \
+sudo chown www-data:www-data uploads  # Adjust user/group as needed
 ```
 
 3. Ensure Python 3 is installed and accessible
