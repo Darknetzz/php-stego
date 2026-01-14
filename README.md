@@ -1,5 +1,7 @@
 # Steganography Analysis Tool
 
+![Steganography Analysis Tool](images/IOouxvkFa7.png)
+
 A comprehensive web-based tool for analyzing images and detecting hidden messages, embedded files, and metadata using various steganography detection techniques.
 
 ## Features
@@ -40,7 +42,7 @@ The tool integrates the following steganography analysis tools:
 ### Server Requirements
 
 - PHP 7.4 or higher
-- Python 3 (for cleanup script)
+- Bash (for cleanup script)
 - Web server (Apache/Nginx)
 
 ### Required Tools
@@ -102,10 +104,10 @@ sudo chmod 755 uploads && \
 sudo chown www-data:www-data uploads  # Adjust user/group as needed
 ```
 
-3. Ensure Python 3 is installed and accessible
+3. Ensure bash is installed (usually pre-installed on Linux systems)
 
 ```bash
-python3 --version
+bash --version
 ```
 
 4. Configure the application by editing `config.php`
@@ -150,7 +152,7 @@ stego/
 ├── index.php              # Main application file
 ├── functions.php          # Core functions
 ├── config.php            # Configuration
-├── deleteafter.py        # Cleanup script
+├── deleteafter.sh        # Cleanup script
 ├── .gitignore            # Git ignore rules
 ├── README.md             # This file
 ├── uploads/              # Upload directory (gitignored)
@@ -193,9 +195,113 @@ If you see permission errors:
 
 If files are not being deleted:
 
-1. Verify Python 3 is installed: `python3 --version`
-2. Check if `deleteafter.py` has execute permissions: `chmod +x deleteafter.py`
+1. Verify bash is installed: `bash --version`
+2. Check if `deleteafter.sh` has execute permissions: `chmod +x deleteafter.sh`
 3. Verify the cleanup script is being called (check web server logs)
+4. Consider setting up a crontab job for more reliable cleanup (see below)
+
+## Automated Cleanup with Crontab (Optional)
+
+The application already includes automatic cleanup: each upload triggers a background bash script (`deleteafter.sh`) that waits for the configured time period and then deletes the files. **Crontab setup is optional** but recommended as a backup/redundancy measure for production environments.
+
+### When Crontab is Useful
+
+Crontab cleanup is recommended if:
+- Your server restarts frequently (background processes are lost on reboot)
+- You want redundancy in case PHP processes fail
+- You prefer a centralized cleanup mechanism
+- You want to monitor cleanup via system logs
+
+If your server is stable and PHP cleanup works reliably, crontab is **not strictly necessary**.
+
+### Setting Up Crontab Cleanup
+
+1. **Create a cleanup script** (optional - you can use `deleteafter.sh` directly):
+
+Create a file called `cleanup-uploads.sh` in your project directory:
+
+```bash
+#!/bin/bash
+# Cleanup script for steganography analysis tool uploads
+
+UPLOAD_DIR="/path/to/your/stego/uploads"  # Update with your full path
+DELETE_AFTER=600  # Time in seconds (default: 10 minutes)
+
+# Find and delete directories older than DELETE_AFTER seconds
+find "$UPLOAD_DIR" -mindepth 1 -maxdepth 1 -type d -mmin +$((DELETE_AFTER / 60)) -exec rm -rf {} \;
+```
+
+Make it executable:
+```bash
+chmod +x cleanup-uploads.sh
+```
+
+2. **Add to crontab**:
+
+Edit your crontab:
+```bash
+crontab -e
+```
+
+Add one of the following entries (choose based on your preference):
+
+**Option A: Using the cleanup script (recommended)**
+```bash
+# Run cleanup every 5 minutes
+*/5 * * * * /path/to/your/stego/cleanup-uploads.sh > /dev/null 2>&1
+```
+
+**Option B: Using find command directly**
+```bash
+# Run cleanup every 5 minutes - finds old directories and deletes them
+*/5 * * * * find /path/to/your/stego/uploads -mindepth 1 -maxdepth 1 -type d -mmin +10 -exec rm -rf {} \;
+```
+
+**Option C: Using a bash one-liner**
+```bash
+# Run cleanup every 5 minutes
+*/5 * * * * find /path/to/your/stego/uploads -mindepth 1 -maxdepth 1 -type d -mmin +10 -exec rm -rf {} \;
+```
+
+3. **Verify crontab is set up correctly**:
+
+```bash
+# List current crontab entries
+crontab -l
+
+# Check cron service is running (systemd)
+sudo systemctl status cron
+
+# Or for older systems
+sudo service cron status
+```
+
+### Crontab Configuration Notes
+
+- **Frequency**: Adjust the cron schedule (`*/5 * * * *` = every 5 minutes) based on your needs
+- **Path**: Always use absolute paths in crontab entries
+- **Permissions**: Ensure the cron user has permission to delete files in the uploads directory
+- **Logging**: Remove `> /dev/null 2>&1` if you want to capture errors in cron logs
+- **Time Matching**: The crontab cleanup time should be less than or equal to `DELETE_AFTER` in `config.php` to ensure timely cleanup
+
+### Recommended Setup
+
+**For most environments**: The existing PHP cleanup is sufficient. No additional setup needed.
+
+**For production environments with high reliability requirements**: 
+1. Keep the PHP background cleanup (already implemented) - this handles normal cleanup
+2. Add a crontab job as a backup (runs every 5-10 minutes) - this catches any missed cleanups
+3. This provides redundancy and ensures cleanup even if PHP processes fail or server restarts occur
+
+**Note**: Crontab is optional. The PHP cleanup mechanism works well for most use cases. Only add crontab if you need extra reliability or have concerns about background processes surviving server restarts.
+
+Example crontab entry for production:
+```bash
+# Cleanup uploads every 5 minutes
+*/5 * * * * find /var/www/html/stego/uploads -mindepth 1 -maxdepth 1 -type d -mmin +10 -exec rm -rf {} \; 2>&1 | logger -t stego-cleanup
+```
+
+This will also log cleanup actions to syslog for monitoring.
 
 ## Contributing
 

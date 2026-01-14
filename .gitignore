@@ -32,4 +32,6 @@ desktop.ini
 *.tmp
 *.temp
 
+# Custom
 binwalk/
+deleteafter.py

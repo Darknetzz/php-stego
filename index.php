@@ -1045,7 +1045,7 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
     }
 
     // Schedule cleanup
-    shell_exec('python3 deleteafter.py '.escapeshellarg($outputFolder).' '.DELETE_AFTER.' > /dev/null 2>&1 &');
+    shell_exec('bash deleteafter.sh '.escapeshellarg($outputFolder).' '.DELETE_AFTER.' > /dev/null 2>&1 &');
     
   } catch (Throwable $t) {
     echo "<div class='card shadow-lg mb-4'>";
