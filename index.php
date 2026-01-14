@@ -159,25 +159,72 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-u1OknCvxWvY5kfmNBILK2hRnQC3Pr17a+RTT6rIHI7NnikvbZlHgTPOOmMi466C8" crossorigin="anonymous"></script>
 
     <style>
+        /* Force dark mode everywhere */
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #121212 !important;
+            color: #e0e0e0 !important;
             min-height: 100vh;
         }
         
+        /* Bootstrap overrides for dark mode */
+        .card {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border-color: #333 !important;
+        }
+        
+        .card-header {
+            background-color: #2d2d2d !important;
+            border-bottom-color: #444 !important;
+            color: #e0e0e0 !important;
+        }
+        
+        .card-body {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        
+        .bg-light, .bg-light * {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+        }
+        
+        .text-muted {
+            color: #999 !important;
+        }
+        
+        .form-control {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        
+        .form-control:focus {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border-color: #0d6efd !important;
+        }
+        
+        .form-control::placeholder {
+            color: #888 !important;
+        }
+        
         .upload-area {
-            border: 3px dashed #0d6efd;
+            border: 3px dashed #0d6efd !important;
             transition: all 0.3s ease;
             cursor: pointer;
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
         }
         
         .upload-area:hover {
-            background-color: #e9ecef;
-            border-color: #198754;
+            background-color: #333 !important;
+            border-color: #198754 !important;
         }
         
         .upload-area.dragover {
-            background-color: #d1e7dd;
-            border-color: #198754;
+            background-color: #2d4d2d !important;
+            border-color: #198754 !important;
         }
         
         .file-input {
@@ -185,10 +232,16 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
         }
         
         .code-block {
-            background: #2d2d2d;
-            color: #f8f8f2;
+            background: #1a1a1a !important;
+            color: #f8f8f2 !important;
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
+        }
+        
+        pre {
+            background-color: #1a1a1a !important;
+            color: #f8f8f2 !important;
+            border-color: #333 !important;
         }
         
         img {
@@ -204,6 +257,175 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
         .form-check-label.disabled-tool {
             cursor: not-allowed;
             text-decoration: line-through;
+        }
+        
+        /* Alert overrides */
+        .alert-success {
+            background-color: #1e3a1e !important;
+            border-color: #198754 !important;
+            color: #d4edda !important;
+        }
+        
+        .alert-danger {
+            background-color: #3a1e1e !important;
+            border-color: #dc3545 !important;
+            color: #f8d7da !important;
+        }
+        
+        .alert-warning {
+            background-color: #3a3a1e !important;
+            border-color: #ffc107 !important;
+            color: #fff3cd !important;
+        }
+        
+        .alert-info {
+            background-color: #1e2a3a !important;
+            border-color: #0dcaf0 !important;
+            color: #d1ecf1 !important;
+        }
+        
+        .alert-warning .text-dark {
+            color: #fff3cd !important;
+        }
+        
+        /* Button overrides */
+        .btn-primary {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0b5ed7 !important;
+            border-color: #0a58ca !important;
+        }
+        
+        .btn-outline-secondary {
+            color: #e0e0e0 !important;
+            border-color: #555 !important;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #555 !important;
+            border-color: #555 !important;
+            color: #fff !important;
+        }
+        
+        .btn-success {
+            background-color: #198754 !important;
+            border-color: #198754 !important;
+        }
+        
+        .btn-sm {
+            background-color: inherit;
+        }
+        
+        /* Badge overrides */
+        .badge {
+            color: #fff !important;
+        }
+        
+        .badge.bg-secondary {
+            background-color: #6c757d !important;
+        }
+        
+        .badge.bg-danger {
+            background-color: #dc3545 !important;
+        }
+        
+        /* Header backgrounds */
+        .bg-primary {
+            background-color: #0d6efd !important;
+        }
+        
+        .bg-success {
+            background-color: #198754 !important;
+        }
+        
+        .bg-warning {
+            background-color: #ffc107 !important;
+        }
+        
+        .text-white {
+            color: #e0e0e0 !important;
+        }
+        
+        .text-dark {
+            color: #e0e0e0 !important;
+        }
+        
+        /* Text color overrides */
+        h1, h2, h3, h4, h5, h6, p, label, span, div, li {
+            color: #e0e0e0 !important;
+        }
+        
+        .text-primary {
+            color: #6ea8fe !important;
+        }
+        
+        /* Input group overrides */
+        .input-group-text {
+            background-color: #2d2d2d !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        
+        /* List overrides */
+        ul, ol {
+            color: #e0e0e0 !important;
+        }
+        
+        /* Link overrides */
+        a {
+            color: #6ea8fe !important;
+        }
+        
+        a:hover {
+            color: #86b7fe !important;
+        }
+        
+        /* Spinner overrides */
+        .spinner-border {
+            color: #0d6efd !important;
+        }
+        
+        /* Dropdown and other Bootstrap components */
+        .dropdown-menu {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
+        }
+        
+        .dropdown-item {
+            color: #e0e0e0 !important;
+        }
+        
+        .dropdown-item:hover {
+            background-color: #333 !important;
+            color: #fff !important;
+        }
+        
+        /* Modal overrides */
+        .modal-content {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+        }
+        
+        .modal-header {
+            border-bottom-color: #444 !important;
+        }
+        
+        .modal-footer {
+            border-top-color: #444 !important;
+        }
+        
+        /* Close button */
+        .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        
+        /* Image thumbnail border */
+        .img-thumbnail {
+            background-color: #2d2d2d !important;
+            border-color: #444 !important;
         }
     </style>
 </head>
@@ -237,6 +459,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'install') {
                     </label>
                     <input type="text" class="form-control" name="steghidepw" id="steghidepw" 
                            placeholder="Enter password if image is protected">
+                    <label for="outguesspw" class="form-label fw-bold mt-3">
+                        <i class="bi bi-key"></i> Outguess Key (Optional)
+                    </label>
+                    <input type="text" class="form-control" name="outguesspw" id="outguesspw" 
+                           placeholder="Enter key for outguess extraction">
+                    <label for="outguess_derivations" class="form-label fw-bold mt-3">
+                        <i class="bi bi-123"></i> Outguess Key Derivations (Optional)
+                    </label>
+                    <input type="number" class="form-control" name="outguess_derivations" id="outguess_derivations" 
+                           placeholder="Number of key derivations to try (default: 1)" min="1" max="100">
+                    <small class="form-text text-muted">Try multiple key derivations when extracting (1-100)</small>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-bold">
@@ -411,9 +644,39 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         }
     }
     
-    $result = $runCommand('outguess -r '.escapeshellarg($fullPathToFile), 'outguess');
+    // Outguess analysis with optional key and key derivations
+    $outguessCmd = 'outguess -r '.escapeshellarg($fullPathToFile);
+    $module['outguessP'] = (isset($_POST['outguesspw']) && !empty($_POST['outguesspw'])) ? escapeshellcmd($_POST['outguesspw']) : null;
+    $outguessDerivations = (isset($_POST['outguess_derivations']) && !empty($_POST['outguess_derivations'])) ? intval($_POST['outguess_derivations']) : 1;
+    
+    if (!empty($module['outguessP'])) {
+        $outguessCmd .= ' -k '.escapeshellarg($module['outguessP']);
+    }
+    
+    if ($outguessDerivations > 1) {
+        $outguessCmd .= ' -x '.$outguessDerivations;
+    }
+    
+    $result = $runCommand($outguessCmd, 'outguess');
     $module['outguess'] = $result['output'] ?? '';
     $module['outguess_error'] = $result['error'] ?? null;
+    
+    // Improve outguess error detection
+    if (empty($module['outguess_error']) && !empty($module['outguess'])) {
+        // Check for common outguess error patterns
+        $outguessOutput = $module['outguess'];
+        if (strpos($outguessOutput, 'Reading ') === false && 
+            strpos($outguessOutput, 'Extracted') === false &&
+            (strpos($outguessOutput, 'error') !== false || 
+             strpos($outguessOutput, 'Error') !== false ||
+             strpos($outguessOutput, 'failed') !== false ||
+             strpos($outguessOutput, 'Failed') !== false ||
+             strpos($outguessOutput, 'cannot') !== false ||
+             strpos($outguessOutput, 'unable') !== false)) {
+            // This looks like an error, but outguess doesn't use stderr for all errors
+            // Store it as output but mark it for display
+        }
+    }
     
     if ($runAll || in_array('strings', $selectedTools)) {
         $result = $runCommand('strings '.escapeshellarg($fullPathToFile), 'strings');
@@ -512,7 +775,7 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
     }
     $stegoveritasOutput .= "</div>";
 
-    // Process and display module results
+    // Process and collect errors first
     $moduleIcons = [
         'stegoveritas' => 'bi-shield-check',
         'foremost' => 'bi-file-earmark-zip',
@@ -528,107 +791,38 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
 
     $missingTools = [];
     $availableTools = [];
+    $errorsData = []; // Store error information
     
+    // First pass: Collect all errors
     foreach ($module as $moduleName => $output) {
-        $skip = false;
-        $collapse = false;
-        $extraOut = "";
-        $icon = $moduleIcons[$moduleName] ?? 'bi-gear';
-        $hasError = false;
-        $errorMessage = '';
-
         // Skip error entries and password fields
-        if (strpos($moduleName, '_error') !== false || $moduleName == 'steghideP') {
+        if (strpos($moduleName, '_error') !== false || $moduleName == 'steghideP' || $moduleName == 'outguessP') {
             continue;
         }
         
         // Check for tool errors
         $errorKey = $moduleName . '_error';
         if (isset($module[$errorKey])) {
-            $hasError = true;
-            $errorMessage = $module[$errorKey];
             $missingTools[] = $moduleName;
-            // Still show the module but with error message
+            $errorsData[$moduleName] = [
+                'error' => $module[$errorKey],
+                'icon' => $moduleIcons[$moduleName] ?? 'bi-gear'
+            ];
         } else {
-            if ($moduleName != 'steghideP') {
+            if ($moduleName != 'steghideP' && $moduleName != 'outguessP') {
                 $availableTools[] = $moduleName;
             }
         }
-        
-        if ($moduleName == 'steghideE') {
-            if (empty($_POST['steghidepw']) || empty($module['steghideP'])) {
-                $skip = true;
-            }
-        }
-
-        if ($moduleName == 'stegoveritas') {
-            $extraOut = $stegoveritasOutput;
-            $collapse = false;
-        }
-        
-        if ($moduleName == 'foremost') {
-            $extraOut = $foremostaudit.$foremostimg;
-            $collapse = false;
-        }
-        
-        if ($moduleName == 'strings' || $moduleName == 'xxd') {
-            $collapse = true;
-        }
-        
-        // Skip empty outputs unless it's a special case or has an error (we want to show errors)
-        if (empty($output) && $moduleName != 'stegoveritas' && $moduleName != 'foremost' && !$hasError) {
-            $skip = true;
-        }
-
-        if ($skip) continue;
-
-        $totalModules++;
-        if (!empty($output) || !empty($extraOut)) {
-            $successfulModules++;
-        }
-
-        // Format output
-        $formattedOutput = "";
-        $alertClass = $hasError ? 'alert-warning' : '';
-        
-        if ($hasError) {
-            $formattedOutput = '<div class="alert alert-warning mb-3"><i class="bi bi-exclamation-triangle"></i> <strong>Tool Not Available:</strong> '.htmlspecialchars($errorMessage).'</div>';
-        } elseif ($collapse) {
-            $outputContent = !empty($output) ? htmlspecialchars($output) : 'No output';
-            $formattedOutput = '
-            <button class="btn btn-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#'.$moduleName.'" aria-expanded="false">
-            <i class="bi bi-chevron-down"></i> Show Output
-            </button>
-            <div class="collapse" id="'.$moduleName.'">
-            <pre class="code-block p-3 rounded">'.$outputContent.'</pre>
-            </div>
-            ';
-        } else {
-            if (!empty($output)) {
-                $formattedOutput = '<div class="bg-light p-3 rounded mb-3"><pre class="code-block p-3 rounded">'.htmlspecialchars($output).'</pre></div>';
-            }
-        }
-
-        $headerBg = $hasError ? 'bg-warning text-dark' : 'bg-primary text-white';
-        
-        echo "
-        <div class='card shadow-lg mb-4'>
-        <div class='card-header $headerBg'>
-            <h5 class='mb-0'><i class='bi $icon me-2'></i> ".ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $moduleName)).($hasError ? ' <span class="badge bg-danger">Not Installed</span>' : '')."</h5>
-        </div>
-        <div class='card-body'>
-          $formattedOutput
-          $extraOut
-        </div>
-        </div>
-        ";
     }
-
-    // Display summary
-    echo "<div class='card shadow-lg mb-4'>";
-    echo "<div class='card-body p-4'>";
     
-    if (!empty($missingTools)) {
+    // Display all errors at the top
+    if (!empty($errorsData)) {
+        echo "<div class='card shadow-lg mb-4 border-warning'>";
+        echo "<div class='card-header bg-warning text-dark'>";
+        echo "<h4 class='mb-0'><i class='bi bi-exclamation-triangle me-2'></i> Missing Tools / Errors</h4>";
+        echo "</div>";
+        echo "<div class='card-body'>";
+        
         // Map display names to tool keys for installation
         $toolMapping = [
             'stegoveritas' => 'stegoveritas',
@@ -669,9 +863,9 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         echo "<h5 class='mb-3'><i class='bi bi-exclamation-triangle'></i> Missing Tools</h5>";
         echo "<p class='mb-2'>The following analysis tools are not installed on the server:</p>";
         echo "<ul class='mb-3'>";
-        foreach ($missingTools as $tool) {
-            $toolName = ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $tool));
-            echo "<li><strong>$toolName</strong></li>";
+        foreach ($errorsData as $toolName => $errorInfo) {
+            $displayName = ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $toolName));
+            echo "<li><strong><i class='bi {$errorInfo['icon']} me-2'></i>$displayName:</strong> ".htmlspecialchars($errorInfo['error'])."</li>";
         }
         echo "</ul>";
         
@@ -717,8 +911,96 @@ if(isset($_FILES["fileToUpload"]) && isset($_FILES["fileToUpload"]["tmp_name"]) 
         }
         
         echo "</div>";
+        echo "</div></div>";
     }
-    
+
+    // Second pass: Display successful module results only
+    foreach ($module as $moduleName => $output) {
+        $skip = false;
+        $collapse = false;
+        $extraOut = "";
+        $icon = $moduleIcons[$moduleName] ?? 'bi-gear';
+
+        // Skip error entries and password fields, and modules with errors (already displayed at top)
+        if (strpos($moduleName, '_error') !== false || $moduleName == 'steghideP' || $moduleName == 'outguessP') {
+            continue;
+        }
+        
+        // Skip modules with errors (already displayed at top)
+        $errorKey = $moduleName . '_error';
+        if (isset($module[$errorKey])) {
+            continue; // Skip modules with errors, they're already shown at the top
+        }
+        
+        if ($moduleName == 'steghideE') {
+            if (empty($_POST['steghidepw']) || empty($module['steghideP'])) {
+                $skip = true;
+            }
+        }
+
+        if ($moduleName == 'stegoveritas') {
+            $extraOut = $stegoveritasOutput;
+            $collapse = false;
+        }
+        
+        if ($moduleName == 'foremost') {
+            $extraOut = $foremostaudit.$foremostimg;
+            $collapse = false;
+        }
+        
+        if ($moduleName == 'strings' || $moduleName == 'xxd') {
+            $collapse = true;
+        }
+        
+        // Skip empty outputs unless it's a special case
+        if (empty($output) && $moduleName != 'stegoveritas' && $moduleName != 'foremost') {
+            $skip = true;
+        }
+
+        if ($skip) continue;
+
+        $totalModules++;
+        if (!empty($output) || !empty($extraOut)) {
+            $successfulModules++;
+        }
+
+        // Format output (no errors here, they're displayed at the top)
+        $formattedOutput = "";
+        
+        if ($collapse) {
+            $outputContent = !empty($output) ? htmlspecialchars($output) : 'No output';
+            $formattedOutput = '
+            <button class="btn btn-primary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#'.$moduleName.'" aria-expanded="false">
+            <i class="bi bi-chevron-down"></i> Show Output
+            </button>
+            <div class="collapse" id="'.$moduleName.'">
+            <pre class="code-block p-3 rounded">'.$outputContent.'</pre>
+            </div>
+            ';
+        } else {
+            if (!empty($output)) {
+                $formattedOutput = '<div class="bg-light p-3 rounded mb-3"><pre class="code-block p-3 rounded">'.htmlspecialchars($output).'</pre></div>';
+            }
+        }
+
+        $headerBg = 'bg-primary text-white';
+        
+        echo "
+        <div class='card shadow-lg mb-4'>
+        <div class='card-header $headerBg'>
+            <h5 class='mb-0'><i class='bi $icon me-2'></i> ".ucfirst(str_replace(['steghide', 'Info', 'E'], ['Steghide ', 'Info', 'Extraction'], $moduleName))."</h5>
+        </div>
+        <div class='card-body'>
+          $formattedOutput
+          $extraOut
+        </div>
+        </div>
+        ";
+    }
+
+    // Display summary
+    echo "<div class='card shadow-lg mb-4'>";
+    echo "<div class='card-body p-4'>";
     echo "<div class='alert alert-info mb-0'>";
     echo "<h5 class='mb-2'><i class='bi bi-check-circle'></i> Analysis Complete</h5>";
     echo "<p class='mb-0'>Ran <strong>$successfulModules</strong> of <strong>$totalModules</strong> analysis modules successfully.";
